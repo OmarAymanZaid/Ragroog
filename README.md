@@ -6,8 +6,8 @@ The goal of this project is to demystify the core mechanics of RAG by building t
 **📚 Course Resources**
 
 * Original Course Playlist:
-<br>https://youtube.com/playlist?list=PLvLvlVqNQGHCUR2p0b8a0QpVjDUg50wQj&si=DbJHLz_hdQ0CZmmM
+<br> https://youtube.com/playlist?list=PLvLvlVqNQGHCUR2p0b8a0QpVjDUg50wQj&si=DbJHLz_hdQ0CZmmM
 
 * Original Repository:
-<br>https://github.com/bakrianoo/mini-rag
+<br> https://github.com/bakrianoo/mini-rag
 
