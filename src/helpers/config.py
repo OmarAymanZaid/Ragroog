@@ -18,8 +18,8 @@ class Settings(BaseSettings):
 
 
     # ---------------- CORE SERVICE APP STATE ----------------
-    APP_NAME: str = "FastAPI Production Service"
-    APP_VERSION: str = "1.0.0"
+    APP_NAME: str = "Ragroog"
+    APP_VERSION: str = "0.1"
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
