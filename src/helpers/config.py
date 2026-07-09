@@ -12,9 +12,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        case_sensitive=False,  # Allows .env keys to be uppercase or lowercase
-        extra="ignore",        # Ignores extraneous system env variables quietly
+        case_sensitive=False,
+        extra="ignore",
     )
+
 
     # ---------------- CORE SERVICE APP STATE ----------------
     APP_NAME: str = "FastAPI Production Service"
@@ -22,8 +23,6 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
-    # ---------------- INFRASTRUCTURE & NETWORK ----------------
-    FRONTEND_ORIGIN: str = "http://localhost:3000"
 
     # ---------------- REUSABLE HELPERS ----------------
     @property
