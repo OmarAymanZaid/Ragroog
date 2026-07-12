@@ -8,6 +8,8 @@ from loguru import logger
 from helpers.config import get_settings
 from utils.logging import configure_logging
 
+from routes import data
+
 
 settings = get_settings()
 
@@ -49,6 +51,7 @@ def create_app() -> FastAPI:
     # ------------------- 
     # Routes & endpoints
     # -------------------
+    app.include_router(data.data_router)
 
 
     @app.get("/", status_code=200, include_in_schema=False)
