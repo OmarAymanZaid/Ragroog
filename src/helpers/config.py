@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
+    
+    FILE_ALLOWED_TYPES: list[str] = ["text/plain", "application/pdf"]
+    FILE_MAX_SIZE: int = 10  # In MB
+    FILE_DEFAULT_CHUNK_SIZE: int = 512000  # 512KB
+
 
     # ---------------- REUSABLE HELPERS ----------------
     @property
