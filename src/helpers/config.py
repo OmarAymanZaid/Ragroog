@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     FILE_MAX_SIZE: int = 10  # In MB
     FILE_DEFAULT_CHUNK_SIZE: int = 512000  # 512KB
 
+    MONGODB_URL: str
+    MONGODB_DATABASE: str
+
 
     # ---------------- REUSABLE HELPERS ----------------
     @property
