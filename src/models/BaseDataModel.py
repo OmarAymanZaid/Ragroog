@@ -1,4 +1,4 @@
-from pymongo.database import AsyncDatabase
+from pymongo.asynchronous.database import AsyncDatabase
 from helpers.config import get_settings, Settings
 
 class BaseDataModel:
