@@ -5,6 +5,8 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from loguru import logger
 
+from pymongo import AsyncMongoClient
+
 from helpers.config import get_settings
 from utils.logging import configure_logging
 
@@ -22,16 +24,39 @@ async def application_lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(level=settings.LOG_LEVEL)
     logger.info(f"Starting {settings.APP_NAME} in [{settings.ENVIRONMENT}] mode...")
     
+    # ------------------------------------------------------
     # Reusable global resources attach to app instance here
-    # (e.g., app.db_client = DatabaseClient())
+    # ------------------------------------------------------
+
+    # 1. Database Engine & Session initialization
+    logger.info("Connecting to MongoDB cluster asynchronously...")
+    app.mongo_client = AsyncMongoClient(settings.MONGODB_URL)
+    app.db = app.mongo_client[settings.MONGODB_DATABASE]
+
+    try:
+        await app.db.command("ping")
+        logger.info(f"Successfully connected to MongoDB database: [{settings.MONGODB_DATABASE}]")
+    except Exception as exc:
+        logger.critical(f"Failed to communicate with MongoDB instance: {exc}")
+        raise exc
+
+
     logger.info("Application infrastructure initialized successfully.")
     
     yield
-    
+        
+    # ------------------------------------------------------
+    #  Graceful resource cleanup execution goes here
+    # ------------------------------------------------------
     logger.info("Initiating application shutdown sequence...")
-    # 3. Graceful resource cleanup execution goes here
-    # (e.g., await app.db_client.disconnect())
-    logger.info("Application safely stopped. Goodbye!")
+
+    # 1. Close database connections
+    logger.info("Initiating MongoDB connection shutdown sequence...")
+    app.mongo_client.close()
+    logger.info("MongoDB connection pool safely dropped.")
+    
+    
+    logger.info("Application safely stopped.")
 
 
 
