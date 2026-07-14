@@ -12,5 +12,8 @@ class PyObjectId(ObjectId):
         return core_schema.json_or_python_schema(
             json_schema=core_schema.str_schema(),
             python_schema=core_schema.is_instance_schema(ObjectId),
-            serialization=core_schema.plain_serializer_function_macro(lambda x: str(x)),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda x: str(x), 
+                when_used="json"
+            ),
         )
