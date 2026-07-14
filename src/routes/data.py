@@ -1,41 +1,65 @@
 import os
 import aiofiles
-from fastapi import FastAPI, APIRouter, Depends, UploadFile, status
+from fastapi import FastAPI, APIRouter, Depends, UploadFile, status, Request
 from fastapi.responses import JSONResponse
 from loguru import logger
 
 from helpers.config import get_settings, Settings
-from models import ResponseSignal
-from controllers import DataController, ProjectController, ProcessController
+
 from .schemes.data import ProcessRequest
+
+from controllers import DataController, ProjectController, ProcessController
+
+from models import ResponseSignal
+from models import AssetTypeEnum
+
+
+from models.ProjectModel import ProjectModel
+from models.ChunkModel import ChunkModel
+from models.AssetModel import AssetModel
+from models.db_schemes.data_chunk import DataChunk
+from models.db_schemes.asset import Asset
 
 
 data_router = APIRouter(
     prefix="/api/v1/data",
-    tags=["api_v1", "data"],
+    tags=["Data Management"],
 )
 
-@data_router.post("/upload/{project_id}")
-async def upload_data(project_id: str, file: UploadFile,
-                      app_settings: Settings = Depends(get_settings)):
-        
+@data_router.post("/upload/{project_id}", status_code=status.HTTP_201_CREATED)
+async def upload_data(
+    request: Request, 
+    project_id: str, 
+    file: UploadFile,
+    app_settings: Settings = Depends(get_settings)
+) -> JSONResponse:
     
-    # validate the file properties
-    data_controller = DataController()
+    """Validates, streams, and saves an incoming data file asset to local storage
 
+    and registers its record entry inside MongoDB.
+    """
+    
+    # 1. Access the modern PyMongo Async DB reference pool cleanly
+    db_context = request.app.db
+        
+    project_model = await ProjectModel.create_instance(db_client=db_context)
+    project = await project_model.get_project_or_create_one(project_id=project_id)
+
+    # 2. File Validation Processing
+    data_controller = DataController()
     is_valid, result_signal = data_controller.validate_uploaded_file(file=file)
 
     if not is_valid:
+        logger.warning(f"File validation rejected for project [{project_id}]: {result_signal}")
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={
-                "signal": result_signal
-            }
+            content={"signal": result_signal}
         )
 
+    # 3. Path Calculations and Streaming
     project_dir_path = ProjectController().get_project_path(project_id=project_id)
     file_path, file_id = data_controller.generate_unique_filepath(
-        orig_file_name=file.filename,
+        orig_file_name=file.filename if file.filename else "unnamed",
         project_id=project_id
     )
 
@@ -43,48 +67,137 @@ async def upload_data(project_id: str, file: UploadFile,
         async with aiofiles.open(file_path, "wb") as f:
             while chunk := await file.read(app_settings.FILE_DEFAULT_CHUNK_SIZE):
                 await f.write(chunk)
-    except Exception as e:
-
-        logger.error(f"Error while uploading file: {e}")
-
+    except Exception as exc:
+        logger.error(f"IO Write streaming operation failed on project file storage: {exc}")
         return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={
-                "signal": ResponseSignal.FILE_UPLOAD_FAILED.value
-            }
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"signal": ResponseSignal.FILE_UPLOAD_FAILED.value}
         )
+    finally:
+        await file.close()
 
-    return JSONResponse(
-            content={
-                "signal": ResponseSignal.FILE_UPLOAD_SUCCESS.value,
-                "file_id": file_id
-            }
-        )
-
-@data_router.post("/process/{project_id}")
-async def process_endpoint(project_id: str, process_request: ProcessRequest):
-
-    file_id = process_request.file_id
-    chunk_size = process_request.chunk_size
-    overlap_size = process_request.overlap_size
-
-    process_controller = ProcessController(project_id=project_id)
-
-    file_content = process_controller.get_file_content(file_id=file_id)
-
-    file_chunks = process_controller.process_file_content(
-        file_content=file_content,
-        file_id=file_id,
-        chunk_size=chunk_size,
-        overlap_size=overlap_size
+    # 4. Storage Audit Tracking via MongoDB
+    asset_model = await AssetModel.create_instance(db_client=db_context)
+    
+    asset_resource = Asset(
+        asset_project_id=project.id,  # Uses your safe Pydantic v2 PyObjectId mappings
+        asset_type=AssetTypeEnum.FILE.value,
+        asset_name=file_id,
+        asset_size=os.path.getsize(file_path)
     )
 
-    if file_chunks is None or len(file_chunks) == 0:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={
-                "signal": ResponseSignal.PROCESSING_FAILED.value
-            }
+    asset_record = await asset_model.create_asset(asset=asset_resource)
+
+    logger.info(f"Asset record [{asset_record.id}] stored safely for project [{project_id}]")
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content={
+            "signal": ResponseSignal.FILE_UPLOAD_SUCCESS.value,
+            "file_id": str(asset_record.id),
+        }
+    )
+
+@data_router.post("/process/{project_id}", status_code=status.HTTP_200_OK)
+async def process_endpoint(
+    request: Request, 
+    project_id: str, 
+    process_request: ProcessRequest
+) -> JSONResponse:
+    """Chunks text data assets into sub-segments and populates the database target."""
+    db_context = request.app.db
+
+    chunk_size = process_request.chunk_size
+    overlap_size = process_request.overlap_size
+    do_reset = process_request.do_reset
+
+    # Instantiate operational data layers
+    project_model = await ProjectModel.create_instance(db_client=db_context)
+    project = await project_model.get_project_or_create_one(project_id=project_id)
+
+    asset_model = await AssetModel.create_instance(db_client=db_context)
+
+    # 1. Resolve Target Assets File Index Matrix
+    project_files_ids = {}
+    if process_request.file_id:
+        asset_record = await asset_model.get_asset_record(
+            asset_project_id=project.id,
+            asset_name=process_request.file_id
         )
 
-    return file_chunks
+        if asset_record is None:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={"signal": ResponseSignal.FILE_ID_ERROR.value}
+            )
+
+        project_files_ids = {asset_record.id: asset_record.asset_name}
+    else:
+        project_files = await asset_model.get_all_project_assets(
+            asset_project_id=project.id,
+            asset_type=AssetTypeEnum.FILE.value,
+        )
+        project_files_ids = {record.id: record.asset_name for record in project_files}
+
+    if len(project_files_ids) == 0:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"signal": ResponseSignal.NO_FILES_ERROR.value}
+        )
+    
+    process_controller = ProcessController(project_id=project_id)
+    chunk_model = await ChunkModel.create_instance(db_client=db_context)
+
+    # 2. Handle Document Overwrites Proactively
+    if do_reset:
+        logger.info(f"Purging legacy structural chunks for project context: [{project.id}]")
+        await chunk_model.delete_chunks_by_project_id(project_id=project.id)
+
+    # 3. Text Processing & Batched Chunk Populating
+    no_records = 0
+    no_files = 0
+
+    for asset_id, file_id in project_files_ids.items():
+        file_content = process_controller.get_file_content(file_id=file_id)
+
+        if file_content is None:
+            logger.error(f"Failed to access text contents for file tracking identifier: {file_id}")
+            continue
+
+        file_chunks = process_controller.process_file_content(
+            file_content=file_content,
+            file_id=file_id,
+            chunk_size=chunk_size,
+            overlap_size=overlap_size
+        )
+
+        if not file_chunks:
+            return JSONResponse(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                content={"signal": ResponseSignal.PROCESSING_FAILED.value}
+            )
+
+        file_chunks_records = [
+            DataChunk(
+                chunk_text=chunk.page_content,
+                chunk_metadata=chunk.metadata,
+                chunk_order=i + 1,
+                chunk_project_id=project.id,
+                chunk_asset_id=asset_id
+            )
+            for i, chunk in enumerate(file_chunks)
+        ]
+
+        # Triggers our high-throughput PyMongo Async bulk write operations
+        no_records += await chunk_model.insert_many_chunks(chunks=file_chunks_records)
+        no_files += 1
+
+    logger.info(f"Successfully processed {no_files} files into {no_records} atomic chunks.")
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "signal": ResponseSignal.PROCESSING_SUCCESS.value,
+            "inserted_chunks": no_records,
+            "processed_files": no_files
+        }
+    )
+
