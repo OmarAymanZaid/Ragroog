@@ -8,7 +8,8 @@ from helpers.config import get_settings, Settings
 
 from .schemes.data import ProcessRequest
 
-from controllers import DataController, ProjectController, ProcessController
+from controllers import DataController, ProjectController, ProcessController, NLPController
+
 
 from models import ResponseSignal
 from models import AssetTypeEnum
@@ -114,6 +115,13 @@ async def process_endpoint(
     project_model = await ProjectModel.create_instance(db_client=db_context)
     project = await project_model.get_project_or_create_one(project_id=project_id)
 
+    nlp_controller = NLPController(
+        vectordb_client=request.app.vectordb_client,
+        generation_client=request.app.generation_client,
+        embedding_client=request.app.embedding_client,
+        template_parser=request.app.template_parser,
+    )
+
     asset_model = await AssetModel.create_instance(db_client=db_context)
 
     # 1. Resolve Target Assets File Index Matrix
@@ -149,6 +157,11 @@ async def process_endpoint(
 
     # 2. Handle Document Overwrites Proactively
     if do_reset:
+
+        logger.info(f"Purging legacy vector collections for project context: [{project.id}]")
+        collection_name = nlp_controller.create_collection_name(project_id=project.project_id)
+        await request.app.vectordb_client.delete_collection(collection_name=collection_name)
+        
         logger.info(f"Purging legacy structural chunks for project context: [{project.id}]")
         await chunk_model.delete_chunks_by_project_id(project_id=project.id)
 
