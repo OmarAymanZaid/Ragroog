@@ -18,3 +18,5 @@ pymongo>=4.9.0
 
 openai==2.46.0
 cohere==7.0.5
+
+qdrant-client==1.18.0
