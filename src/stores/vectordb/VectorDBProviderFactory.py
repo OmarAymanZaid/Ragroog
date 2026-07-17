@@ -1,4 +1,4 @@
-from .providers import QdrantDBProvider, PGVectorProvider
+from .providers import QdrantDBProvider #, PGVectorProvider
 from .VectorDBEnums import VectorDBEnums
 from controllers.BaseController import BaseController
 #  from sqlalchemy.orm import sessionmaker
