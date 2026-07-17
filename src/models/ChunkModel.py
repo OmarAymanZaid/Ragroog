@@ -62,3 +62,28 @@ class ChunkModel:
     async def delete_chunks_by_project_id(self, project_id: ObjectId) -> int:
         result = await self.collection.delete_many({"chunk_project_id": project_id})
         return result.deleted_count
+    
+    async def get_project_chunks(
+        self, 
+        project_id: ObjectId, 
+        page_no: int = 1, 
+        page_size: int = 50
+    ) -> list[DataChunk]:
+        # Query matching 'chunk_project_id' with pagination skip and limit
+        cursor = (
+            self.collection.find({"chunk_project_id": project_id})
+            .skip((page_no - 1) * page_size)
+            .limit(page_size)
+        )
+
+        chunks = []
+        # Modern PyMongo Async allows streaming documents directly via async iteration
+        async for document in cursor:
+            chunks.append(DataChunk(**document))
+            
+        return chunks
+
+    async def get_total_chunks_count(self, project_id: ObjectId) -> int:
+        # High-performance native document counting matching the query criteria
+        return await self.collection.count_documents({"chunk_project_id": project_id})
+    
