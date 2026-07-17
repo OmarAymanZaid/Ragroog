@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     GENERATION_BACKEND: str
     EMBEDDING_BACKEND: str
 
+    OPENAI_API_KEY: str = None
+    OPENAI_API_URL: str = None
+
     GENERATION_MODEL_ID_LITERAL: list[str] = None
     GENERATION_MODEL_ID: str = None
     EMBEDDING_MODEL_ID: str = None
