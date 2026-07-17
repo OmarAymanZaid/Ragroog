@@ -7,7 +7,7 @@ from models.db_schemes import RetrievedDocument
 class QdrantDBProvider(VectorDBInterface):
 
     def __init__(self, db_client: str, default_vector_size: int = 786,
-                                     distance_method: str = None, index_threshold: int=100):
+                 distance_method: str = None, index_threshold: int = 100):
 
         self.client = None
         self.db_client = db_client
@@ -35,7 +35,8 @@ class QdrantDBProvider(VectorDBInterface):
         return self.client.get_collection(collection_name=collection_name)
     
     async def delete_collection(self, collection_name: str):
-        if self.is_collection_existed(collection_name):
+        # FIX: Added await here
+        if await self.is_collection_existed(collection_name):
             logger.info(f"Deleting collection: {collection_name}")
             return self.client.delete_collection(collection_name=collection_name)
         
@@ -43,9 +44,11 @@ class QdrantDBProvider(VectorDBInterface):
                                 embedding_size: int,
                                 do_reset: bool = False):
         if do_reset:
-            _ = self.delete_collection(collection_name=collection_name)
+            # FIX: Added await here
+            await self.delete_collection(collection_name=collection_name)
         
-        if not self.is_collection_existed(collection_name):
+        # FIX: Added await here
+        if not await self.is_collection_existed(collection_name):
             logger.info(f"Creating new Qdrant collection: {collection_name}")
             
             _ = self.client.create_collection(
@@ -55,7 +58,6 @@ class QdrantDBProvider(VectorDBInterface):
                     distance=self.distance_method
                 )
             )
-
             return True
         
         return False
@@ -64,8 +66,9 @@ class QdrantDBProvider(VectorDBInterface):
                          metadata: dict = None, 
                          record_id: str = None):
         
-        if not self.is_collection_existed(collection_name):
-            logger.error(f"Can not insert new record to non-existed collection: {collection_name}")
+        # FIX: Added await here
+        if not await self.is_collection_existed(collection_name):
+            logger.error(f"Cannot insert new record into non-existent collection: {collection_name}")
             return False
         
         try:
@@ -113,7 +116,6 @@ class QdrantDBProvider(VectorDBInterface):
                         "text": batch_texts[x], "metadata": batch_metadata[x]
                     }
                 )
-
                 for x in range(len(batch_texts))
             ]
 
@@ -129,7 +131,6 @@ class QdrantDBProvider(VectorDBInterface):
         return True
         
     async def search_by_vector(self, collection_name: str, vector: list, limit: int = 5):
-
         results = self.client.search(
             collection_name=collection_name,
             query_vector=vector,
