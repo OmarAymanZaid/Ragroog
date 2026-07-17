@@ -13,6 +13,8 @@ from utils.logging import configure_logging
 from routes import data
 
 from stores.llm.LLMProviderFactory import LLMProviderFactory
+from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
+
 
 settings = get_settings()
 
@@ -57,6 +59,13 @@ async def application_lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
 
+    # 3. Vector DB Provider Factory initialization
+    logger.info("Initializing Vector DB clients...")
+    vectordb_provider_factory = VectorDBProviderFactory(config=settings, db_client=app.db_client)
+
+    app.vectordb_client = vectordb_provider_factory.create(provider=settings.VECTOR_DB_BACKEND)
+    await app.vectordb_client.connect()
+
     logger.info("Application infrastructure initialized successfully.")
     
     yield
@@ -71,6 +80,11 @@ async def application_lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.mongo_client.close()
     logger.info("MongoDB connection pool safely dropped.")
     
+    # 2. Close Vector DB connections
+    logger.info("Disconnecting from Vector DB service...")
+    await app.vectordb_client.disconnect()
+    logger.info("Vector DB connection safely dropped.")
+
     
     logger.info("Application safely stopped.")
 
