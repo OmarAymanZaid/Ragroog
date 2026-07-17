@@ -31,6 +31,17 @@ class Settings(BaseSettings):
     MONGODB_URL: str
     MONGODB_DATABASE: str
 
+    GENERATION_BACKEND: str
+    EMBEDDING_BACKEND: str
+
+    GENERATION_MODEL_ID_LITERAL: list[str] = None
+    GENERATION_MODEL_ID: str = None
+    EMBEDDING_MODEL_ID: str = None
+    EMBEDDING_MODEL_SIZE: int = None
+    INPUT_DEFAULT_MAX_CHARACTERS: int = None
+    GENERATION_DEFAULT_MAX_TOKENS: int = None
+    GENERATION_DEFAULT_TEMPERATURE: float = None
+
 
     # ---------------- REUSABLE HELPERS ----------------
     @property
