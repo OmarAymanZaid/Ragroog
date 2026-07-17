@@ -61,7 +61,7 @@ async def application_lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # 3. Vector DB Provider Factory initialization
     logger.info("Initializing Vector DB clients...")
-    vectordb_provider_factory = VectorDBProviderFactory(config=settings, db_client=app.db_client)
+    vectordb_provider_factory = VectorDBProviderFactory(config=settings, db_client=app.db)
 
     app.vectordb_client = vectordb_provider_factory.create(provider=settings.VECTOR_DB_BACKEND)
     await app.vectordb_client.connect()
