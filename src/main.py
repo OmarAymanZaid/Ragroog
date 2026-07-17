@@ -13,6 +13,7 @@ from utils.logging import configure_logging
 from routes import data
 
 from stores.llm.LLMProviderFactory import LLMProviderFactory
+from stores.llm.templates.template_parser import TemplateParser
 from stores.vectordb.VectorDBProviderFactory import VectorDBProviderFactory
 
 
@@ -68,8 +69,16 @@ async def application_lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     logger.info("Application infrastructure initialized successfully.")
     
-    yield
-        
+    # 4. template_parser
+    logger.info("Create a template parser...")
+    
+    app.template_parser = TemplateParser(
+        language=settings.PRIMARY_LANG,
+        default_language=settings.DEFAULT_LANG,
+    )
+
+
+    yield    
     # ------------------------------------------------------
     #  Graceful resource cleanup execution goes here
     # ------------------------------------------------------
