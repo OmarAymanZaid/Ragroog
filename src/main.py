@@ -11,6 +11,7 @@ from helpers.config import get_settings
 from utils.logging import configure_logging
 
 from routes import data
+from routes import nlp
 
 from stores.llm.LLMProviderFactory import LLMProviderFactory
 from stores.llm.templates.template_parser import TemplateParser
@@ -97,8 +98,6 @@ async def application_lifespan(app: FastAPI) -> AsyncIterator[None]:
     
     logger.info("Application safely stopped.")
 
-
-
 # ==========================================
 # THE APPLICATION FACTORY
 # ==========================================
@@ -116,7 +115,7 @@ def create_app() -> FastAPI:
     # Routes & endpoints
     # -------------------
     app.include_router(data.data_router)
-
+    app.include_router(nlp.nlp_router)
 
     @app.get("/", status_code=200, include_in_schema=False)
     async def root_ping() -> dict[str, str]:
