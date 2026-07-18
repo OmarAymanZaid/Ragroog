@@ -77,7 +77,7 @@ async def index_project(request: Request, project_id: int, push_request: PushReq
             has_records = False
             break
 
-        chunks_ids =  [ c.id for c in page_chunks ]
+        chunks_ids =  [ str(c.id) for c in page_chunks ]
         idx += len(page_chunks)
         
         is_inserted = await nlp_controller.index_into_vector_db(
@@ -112,7 +112,7 @@ async def get_project_index_info(request: Request, project_id: int):
     )
 
     project = await project_model.get_project_or_create_one(
-        project_id=project_id
+        project_id=str(project_id)
     )
 
     nlp_controller = NLPController(
@@ -136,11 +136,11 @@ async def get_project_index_info(request: Request, project_id: int):
 async def search_index(request: Request, project_id: int, search_request: SearchRequest):
     
     project_model = await ProjectModel.create_instance(
-        db_client=request.app.db_client
+        db_client=request.app.db
     )
 
     project = await project_model.get_project_or_create_one(
-        project_id=project_id
+        project_id=str(project_id)
     )
 
     nlp_controller = NLPController(
@@ -173,11 +173,11 @@ async def search_index(request: Request, project_id: int, search_request: Search
 async def answer_rag(request: Request, project_id: int, search_request: SearchRequest):
     
     project_model = await ProjectModel.create_instance(
-        db_client=request.app.db_client
+        db_client=request.app.db
     )
 
     project = await project_model.get_project_or_create_one(
-        project_id=project_id
+        project_id=str(project_id)
     )
 
     nlp_controller = NLPController(
