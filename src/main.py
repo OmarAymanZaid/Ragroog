@@ -87,7 +87,7 @@ async def application_lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # 1. Close database connections
     logger.info("Initiating MongoDB connection shutdown sequence...")
-    app.mongo_client.close()
+    await app.mongo_client.close()
     logger.info("MongoDB connection pool safely dropped.")
     
     # 2. Close Vector DB connections
