@@ -37,7 +37,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = None
     OPENAI_BASE_URL: str = None
     COHERE_API_KEY: str = None
-
+	
+    OLLAMA_API_URL: str = "http://localhost:11434"
+    OLLAMA_THINK: bool = False
 
     GENERATION_MODEL_ID_LITERAL: list[str] = None
     GENERATION_MODEL_ID: str = None
