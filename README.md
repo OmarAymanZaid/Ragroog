@@ -11,6 +11,7 @@ The goal of this project is to demystify the core mechanics of RAG by building t
 * Original Repository:
 <br> https://github.com/bakrianoo/mini-rag
 
+
 ## Run the FastAPI server (Development Mode)
 
 ```bash
